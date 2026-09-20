@@ -1,2 +1,31 @@
-.venv
-.idea
+# Python environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+
+# Secrets and config (never commit these)
+.env
+*.env
+.databrickscfg
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Scraped data and logs
+data/
+logs/
+*.log
+*.gz
+*.parquet
+*.jsonl
+*.csv
