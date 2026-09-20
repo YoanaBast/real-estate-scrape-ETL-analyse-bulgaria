@@ -9,6 +9,7 @@ URLS = {
 with httpx.Client(headers=HEADERS, timeout=20, follow_redirects=True) as client:
     for name, url in URLS.items():
         r = client.get(url)
+        r.encoding = 'windows-1252'
         html = r.text
         title = re.search(r"<title>(.*?)</title>", html, re.S)
         print(name, r.status_code, len(r.content), "bytes")
