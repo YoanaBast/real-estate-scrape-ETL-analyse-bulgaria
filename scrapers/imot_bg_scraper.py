@@ -1,9 +1,13 @@
 """
 Scraper for imot.bg listing detail pages.
 
-Fetches each listing URL, parses out structured fields, and appends
-one JSON object per line to a local JSONL file. Safe to stop and
-re-run: already-scraped listing IDs are skipped on the next run.
+Fetches each listing URL, parses out structured fields, and maintains:
+- one JSON object per listing in detail_snapshot.jsonl containing the
+  latest/current state
+- one JSON object per price observation/change in price_history.jsonl
+
+Every currently discovered listing is scraped on every run.
+Price history is only updated when a listing is new or its price changes.
 """
 
 import time
@@ -13,7 +17,15 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 
 REQUEST_HEADERS = {"User-Agent": "personal-research-project (tursqkushta@gmail.com)"}
-OUTPUT_FILE_PATH = Path("data/detail_snapshot.jsonl")
+
+OUTPUT_FILE_PATH = Path(
+    "/Volumes/workspace/default/real-estate/raw/detail_snapshot.jsonl"
+)
+
+PRICE_HISTORY_FILE_PATH = Path(
+    "/Volumes/workspace/default/real-estate/raw/price_history.jsonl"
+)
+
 SECONDS_BETWEEN_REQUESTS = 1.5
 
 
@@ -69,7 +81,9 @@ def parse_listing_detail_page(html_text: str, listing_url: str) -> dict:
     # Contains the "last edited" or "published" timestamp plus the view count.
     listing_info_element = parsed_page.select_one(".adPrice .info")
     listing_info_text = (
-        listing_info_element.get_text(" ", strip=True) if listing_info_element else None
+        listing_info_element.get_text(" ", strip=True)
+        if listing_info_element
+        else None
     )
 
     return {
@@ -86,47 +100,88 @@ def parse_listing_detail_page(html_text: str, listing_url: str) -> dict:
     }
 
 
-def load_already_scraped_listing_ids() -> set:
-    """Read the output file (if it exists) and return the set of listing IDs
-    already saved, so a re-run can skip them."""
+def load_existing_listing_rows() -> dict:
+    """Load the latest saved row for each listing ID."""
     if not OUTPUT_FILE_PATH.exists():
-        return set()
+        return {}
 
-    already_scraped_ids = set()
+    existing_listing_rows = {}
+
     with open(OUTPUT_FILE_PATH, encoding="utf-8") as existing_file:
         for line in existing_file:
             try:
                 saved_row = json.loads(line)
             except json.JSONDecodeError:
                 continue
+
             saved_listing_id = saved_row.get("listing_id")
+
             if saved_listing_id:
-                already_scraped_ids.add(saved_listing_id)
-    return already_scraped_ids
+                existing_listing_rows[saved_listing_id] = saved_row
+
+    return existing_listing_rows
+
+
+def load_already_scraped_listing_ids() -> set:
+    """
+    Keep the original function name for compatibility.
+
+    Returns the listing IDs currently present in the snapshot.
+    The scraper no longer uses these IDs to skip scraping.
+    """
+    existing_listing_rows = load_existing_listing_rows()
+    return set(existing_listing_rows)
+
+
+def load_price_history() -> list:
+    """Load the existing price history."""
+    if not PRICE_HISTORY_FILE_PATH.exists():
+        return []
+
+    price_history = []
+
+    with open(PRICE_HISTORY_FILE_PATH, encoding="utf-8") as history_file:
+        for line in history_file:
+            try:
+                saved_row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            price_history.append(saved_row)
+
+    return price_history
 
 
 def scrape_listing_urls(listing_id_url_pairs: list[tuple[str, str]]) -> None:
-    """Fetch and parse each (listing_id, url) pair, appending results to
-    OUTPUT_FILE_PATH. Pairs whose listing_id is already in the output
-    file are skipped."""
-    already_scraped_ids = load_already_scraped_listing_ids()
+    """
+    Fetch and parse every currently discovered listing.
+
+    detail_snapshot.jsonl contains only the latest/current state.
+
+    price_history.jsonl contains the initial price and every subsequent
+    price change for each listing.
+    """
+    existing_listing_rows = load_existing_listing_rows()
+    price_history = load_price_history()
+
     OUTPUT_FILE_PATH.parent.mkdir(exist_ok=True)
 
     print(
         f"got {len(listing_id_url_pairs)} listing URLs, "
-        f"{len(already_scraped_ids)} already scraped"
+        f"{len(existing_listing_rows)} existing listings"
     )
+
+    current_listing_rows = {}
+    current_price_history = list(price_history)
 
     with httpx.Client(
         headers=REQUEST_HEADERS, timeout=20, follow_redirects=True
-    ) as http_client, open(OUTPUT_FILE_PATH, "a", encoding="utf-8") as output_file:
+    ) as http_client:
 
         for listing_id, listing_url in listing_id_url_pairs:
-            if listing_id in already_scraped_ids:
-                continue
-
             try:
                 response = http_client.get(listing_url)
+
                 if response.status_code != 200:
                     print(f"  SKIP {listing_id}: status {response.status_code}")
                     continue
@@ -134,16 +189,96 @@ def scrape_listing_urls(listing_id_url_pairs: list[tuple[str, str]]) -> None:
                 response.encoding = "windows-1251"
                 parsed_row = parse_listing_detail_page(response.text, listing_url)
 
-                output_file.write(json.dumps(parsed_row, ensure_ascii=False) + "\n")
-                output_file.flush()
-                already_scraped_ids.add(listing_id)
+                parsed_listing_id = parsed_row.get("listing_id") or listing_id
 
-                print(listing_id, parsed_row["listing_id"], parsed_row["price"], parsed_row["currency"])
+                # Make sure the sitemap listing ID is retained if the page's
+                # JSON-LD does not provide one.
+                if not parsed_row.get("listing_id"):
+                    parsed_row["listing_id"] = listing_id
+
+                current_listing_rows[parsed_listing_id] = parsed_row
+
+                previous_row = existing_listing_rows.get(parsed_listing_id)
+
+                previous_price = (
+                    previous_row.get("price") if previous_row else None
+                )
+                previous_currency = (
+                    previous_row.get("currency") if previous_row else None
+                )
+
+                current_price = parsed_row.get("price")
+                current_currency = parsed_row.get("currency")
+
+                price_changed = (
+                    previous_row is not None
+                    and (
+                        previous_price != current_price
+                        or previous_currency != current_currency
+                    )
+                )
+
+                new_listing = previous_row is None
+
+                if new_listing or price_changed:
+                    current_price_history.append(
+                        {
+                            "listing_id": parsed_listing_id,
+                            "url": parsed_row.get("url"),
+                            "price": current_price,
+                            "currency": current_currency,
+                            "observed_at": time.strftime(
+                                "%Y-%m-%dT%H:%M:%S"
+                            ),
+                        }
+                    )
+
+                    if new_listing:
+                        print(
+                            f"NEW {parsed_listing_id} "
+                            f"{current_price} {current_currency}"
+                        )
+                    else:
+                        print(
+                            f"PRICE CHANGE {parsed_listing_id}: "
+                            f"{previous_price} {previous_currency} -> "
+                            f"{current_price} {current_currency}"
+                        )
+                else:
+                    print(
+                        f"OK {parsed_listing_id} "
+                        f"{current_price} {current_currency}"
+                    )
 
             except httpx.HTTPError as error:
                 print(f"  ERROR {listing_id}: {error}")
 
             time.sleep(SECONDS_BETWEEN_REQUESTS)
+
+    # Write the complete current snapshot in one operation.
+    #
+    # "w" is used because Databricks Volumes can reject append/seek
+    # operations with OSError: [Errno 29] Illegal seek.
+    with open(OUTPUT_FILE_PATH, "w", encoding="utf-8") as output_file:
+        for parsed_row in current_listing_rows.values():
+            output_file.write(
+                json.dumps(parsed_row, ensure_ascii=False) + "\n"
+            )
+
+    # Write the complete price history in one operation.
+    with open(PRICE_HISTORY_FILE_PATH, "w", encoding="utf-8") as history_file:
+        for history_row in current_price_history:
+            history_file.write(
+                json.dumps(history_row, ensure_ascii=False) + "\n"
+            )
+
+    print(
+        f"\nfinished: {len(current_listing_rows)} current listings"
+    )
+
+    print(
+        f"price history records: {len(current_price_history)}"
+    )
 
 
 if __name__ == "__main__":
