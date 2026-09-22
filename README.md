@@ -1,13 +1,16 @@
-[![Databricks](https://img.shields.io/badge/Databricks-EF3A2D?logo=databricks&logoColor=white)](https://www.databricks.com/)
-[![Apache Spark](https://img.shields.io/badge/Apache%20Spark-E25A1C?logo=apachespark&logoColor=white)](https://spark.apache.org/)
+[![Databricks](https://img.shields.io/badge/Databricks-EF3A2D?style=for-the-badge&logo=databricks&logoColor=white)](https://www.databricks.com/)
+[![Apache Spark](https://img.shields.io/badge/Apache%20Spark-E25A1C?style=for-the-badge&logo=apachespark&logoColor=white)](https://spark.apache.org/)
 
-## A web-scraping ETL pipeline implemented on Databricks using a lakehouse architecture and the Bronze/Silver/Gold medallion pattern. Configured for the website structure of imot.bg and currently set up to scrape houses for sale near Varna, Bulgaria.
+## Real Estate Data 
+A web-scraping ETL pipeline implemented on Databricks using a lakehouse architecture and the Bronze/Silver/Gold medallion pattern. Configured for the website structure of imot.bg and currently set up to scrape houses for sale near Varna, Bulgaria.
 
 
 ![Real Estate Data ETL Pipeline](docs/arch_flowchart.png)
 
+## Setup: 
+This is supposed to run on a serverless databricks notebook, just recreate the file structure and upload the scripts in code/. The notebook is available in root. The notebook blocks are supposed to be run in the order they were written. The scrapers work for imot.bg and the scrape criteria can be adapted in the "Run the imot.bg sitemap discovery" section. 
+
 ## Expected Databricks file locations
-this is my structure, you may need to change locations in the scrapers and the notebook
 
 <pre>
   DATABRICKS
