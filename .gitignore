@@ -21,11 +21,3 @@ __pycache__/
 # Notebooks
 .ipynb_checkpoints/
 
-# Scraped data and logs
-scrapers/data/
-logs/
-*.log
-*.gz
-*.parquet
-*.jsonl
-*.csv

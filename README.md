@@ -1,3 +1,4 @@
+![Real Estate Data ETL Pipeline](docs/arch_flowchart.png)
 
 ## Expected Databricks file locations
 this is my structure, you may need to change locations in the scrapers and the notebook

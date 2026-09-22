@@ -17,7 +17,7 @@ REQUEST_HEADERS = {"User-Agent": "personal-research-project (tursqkushta@gmail.c
 SITEMAP_INDEX_URL = "https://www.imot.bg/sitemap/index.xml"
 SITEMAP_XML_NAMESPACE = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 SECONDS_BETWEEN_SITEMAP_DOWNLOADS = 1.0
-# DISCOVERED_PAIRS_FILE_PATH = Path("data/discovered_listing_urls.json")
+# DISCOVERED_PAIRS_FILE_PATH = Path("raw/discovered_listing_urls.json")
 DISCOVERED_PAIRS_FILE_PATH = Path(
     "/Volumes/workspace/default/real-estate/raw/discovered_listing_urls.json"
 )
