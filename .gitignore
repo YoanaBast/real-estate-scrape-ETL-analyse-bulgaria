@@ -22,7 +22,7 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Scraped data and logs
-data/
+scrapers/data/
 logs/
 *.log
 *.gz
