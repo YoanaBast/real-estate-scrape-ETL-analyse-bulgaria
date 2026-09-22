@@ -1,3 +1,9 @@
+[![Databricks](https://img.shields.io/badge/Databricks-EF3A2D?logo=databricks&logoColor=white)](https://www.databricks.com/)
+[![Apache Spark](https://img.shields.io/badge/Apache%20Spark-E25A1C?logo=apachespark&logoColor=white)](https://spark.apache.org/)
+
+## A web-scraping ETL pipeline implemented on Databricks using a lakehouse architecture and the Bronze/Silver/Gold medallion pattern. Configured for the website structure of imot.bg and currently set up to scrape houses for sale near Varna, Bulgaria.
+
+
 ![Real Estate Data ETL Pipeline](docs/arch_flowchart.png)
 
 ## Expected Databricks file locations
