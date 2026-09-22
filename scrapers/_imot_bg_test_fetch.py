@@ -1,5 +1,7 @@
 import re, time, httpx
-
+"""
+this tests the connection to imot.bg
+"""
 HEADERS = {"User-Agent": "personal-research-project (tursqkushta@gmail.com)"}
 URLS = {
     "results": "https://www.imot.bg/obiavi/prodazhbi/grad-varna",
