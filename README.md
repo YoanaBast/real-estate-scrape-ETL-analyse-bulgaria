@@ -1,5 +1,7 @@
 
 ## Expected Databricks file locations
+this is my structure, you may need to change locations in the scrapers and the notebook
+
 <pre>
   DATABRICKS
 │
